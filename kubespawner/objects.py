@@ -28,7 +28,7 @@ from kubespawner.utils import get_k8s_model, update_k8s_model
 
 
 def ssl_enabled(env):
-    return 'JUPYTERHUB_SSL_KEYFILE' in env and 'JUPYTERHUB_SSL_CERTFILE' in env
+    return env is not None and 'JUPYTERHUB_SSL_KEYFILE' in env and 'JUPYTERHUB_SSL_CERTFILE' in env
 
 def make_pod(
     name,
@@ -246,6 +246,9 @@ def make_pod(
 
     if ssl_enabled(env):
         key_name = 'user-'+env['JUPYTERHUB_USER']
+
+        if not volumes:
+            volumes = []
         volumes.append({
             'name':'ssl',
             'secret': {
@@ -271,6 +274,8 @@ def make_pod(
         if not working_dir:
             raise Exception('working_dir must be specified when ssl is enabled')
 
+        if not volume_mounts:
+            volume_mounts = []
         mountPath = os.path.dirname(os.path.dirname(working_dir+'/'+env['JUPYTERHUB_SSL_KEYFILE']))
         volume_mounts.append({'name': 'ssl', 'mountPath': mountPath})
 

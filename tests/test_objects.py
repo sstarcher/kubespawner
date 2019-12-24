@@ -1,8 +1,8 @@
 """
 Test functions used to create k8s objects
 """
-from kubespawner.objects import make_pod, make_pvc
 from kubernetes.client import ApiClient
+from kubespawner.objects import make_pod, make_pvc
 
 api_client = ApiClient()
 
@@ -1526,6 +1526,75 @@ def test_make_pod_with_priority_class_name():
             'restartPolicy': 'OnFailure',
             'volumes': [],
             'priorityClassName': 'my-custom-priority-class',
+        },
+        "kind": "Pod",
+        "apiVersion": "v1"
+    }
+
+
+def test_make_pod_with_ssl():
+    """
+    Test specification of a pod with ssl enabled
+    """
+    assert api_client.sanitize_for_serialization(make_pod(
+        name='ssl',
+        image='jupyter/singleuser:latest',
+        env={
+            'JUPYTERHUB_SSL_KEYFILE': 'TEST_VALUE',
+            'JUPYTERHUB_SSL_CERTFILE': 'TEST',
+            'JUPYTERHUB_USER': 'TEST',
+        },
+        working_dir='/',
+        cmd=['jupyterhub-singleuser'],
+        port=8888,
+        image_pull_policy='IfNotPresent'
+    )) == {
+        "metadata": {
+            "name": "ssl",
+            "annotations": {},
+            "labels": {},
+        },
+        "spec": {
+            'automountServiceAccountToken': False,
+            "containers": [
+                {
+                    "env": [
+                        {'name': 'JUPYTERHUB_SSL_KEYFILE', 'value': 'TEST_VALUE'},
+                        {'name': 'JUPYTERHUB_SSL_CERTFILE', 'value': 'TEST'},
+                        {'name': 'JUPYTERHUB_USER', 'value': 'TEST'},
+                    ],
+                    "name": "notebook",
+                    "image": "jupyter/singleuser:latest",
+                    "imagePullPolicy": "IfNotPresent",
+                    "args": ["jupyterhub-singleuser"],
+                    "ports": [{
+                        "name": "notebook-port",
+                        "containerPort": 8888
+                    }],
+                    'volumeMounts': [
+                        {'mountPath': '//', 'name': 'ssl'}
+                    ],
+                    'workingDir': '/',
+                    "resources": {
+                        "limits": {
+                        },
+                        "requests": {
+                        }
+                    }
+                }
+            ],
+            'restartPolicy': 'OnFailure',
+            'volumes': [
+                {'name': 'ssl',
+                'secret': {
+                    'defaultMode': 511,
+                    'items': [
+                        {'key': 'key','path': 'user-TEST/user-TEST.key'},
+                        {'key': 'crt','path': 'user-TEST/user-TEST.crt'},
+                        {'key': 'notebooks-ca_trust.crt','path': 'notebooks-ca_trust.crt'}],
+                    'secretName': 'ssl'
+                }}
+            ],
         },
         "kind": "Pod",
         "apiVersion": "v1"
