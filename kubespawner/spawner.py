@@ -5,45 +5,36 @@ This module exports `KubeSpawner` class, which is the actual spawner
 implementation that should be used by JupyterHub.
 """
 
-from functools import partial  # noqa
-from datetime import datetime
 import json
-import os
-import sys
-import string
 import multiprocessing
-from concurrent.futures import ThreadPoolExecutor
+import os
+import string
+import sys
 import warnings
+from asyncio import sleep
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+from functools import partial  # noqa
 
-from tornado import gen
-from tornado.ioloop import IOLoop
+from jinja2 import BaseLoader, Environment
+from tornado import gen, web
 from tornado.concurrent import run_on_executor
-from tornado import web
-from traitlets import (
-    Bool,
-    Dict,
-    Integer,
-    List,
-    Unicode,
-    Union,
-    default,
-    observe,
-    validate,
-)
-from jupyterhub.spawner import Spawner
-from jupyterhub.utils import exponential_backoff
-from jupyterhub.traitlets import Command
-from kubernetes.client.rest import ApiException
-from kubernetes import client
+from tornado.ioloop import IOLoop
+
 import escapism
-from jinja2 import Environment, BaseLoader
+from async_generator import async_generator, yield_
+from jupyterhub.spawner import Spawner
+from jupyterhub.traitlets import Command
+from jupyterhub.utils import exponential_backoff
+from kubernetes import client
+from kubernetes.client.rest import ApiException
+from kubespawner.objects import make_pod, make_pvc, make_secret
+from kubespawner.reflector import NamespacedResourceReflector
+from kubespawner.traitlets import Callable
+from traitlets import (Bool, Dict, Integer, List, Unicode, Union, default,
+                       observe, validate)
 
 from .clients import shared_client
-from kubespawner.traitlets import Callable
-from kubespawner.objects import make_pod, make_pvc
-from kubespawner.reflector import NamespacedResourceReflector
-from asyncio import sleep
-from async_generator import async_generator, yield_
 
 
 class PodReflector(NamespacedResourceReflector):
@@ -1174,7 +1165,7 @@ class KubeSpawner(Spawner):
         config=True,
         help="""
         Time in seconds for the pod to be in `terminating` state before is forcefully killed.
-        
+
         Increase this if you need more time to execute a `preStop` lifecycle hook.
 
         See https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods for
@@ -1436,6 +1427,23 @@ class KubeSpawner(Spawner):
             priority_class_name=self.priority_class_name,
             logger=self.log,
         )
+
+
+    def get_secret_manifest(self):
+        """
+        Make a secret manifest that contains the ssl certificates.
+        """
+
+        labels = self._build_pod_labels(self._expand_all(self.extra_labels))
+        annotations = self._build_common_annotations(self._expand_all(self.extra_annotations))
+
+        return make_secret(
+            name=self.pod_name,
+            env=self.get_env(),
+            labels=labels,
+            annotations=annotations,
+        )
+
 
     def get_pvc_manifest(self):
         """
@@ -1781,6 +1789,21 @@ class KubeSpawner(Spawner):
 
                     self.log.info("PVC " + self.pvc_name + " already exists, possibly have reached quota though.")
 
+                else:
+                    raise
+
+
+        secret = self. get_secret_manifest()
+        if secret:
+            try:
+                yield self.asynchronize(
+                    self.api.create_namespaced_secret,
+                    namespace=self.namespace,
+                    body=secret
+                )
+            except ApiException as e:
+                if e.status == 409:
+                    self.log.info("Secret " + self.pod_name + " already exists, so did not create new secret.")
                 else:
                     raise
 

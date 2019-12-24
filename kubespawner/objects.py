@@ -1,26 +1,34 @@
 """
 Helper methods for generating k8s API objects.
 """
+import base64
 import json
+import os
 import re
 from urllib.parse import urlparse
 
+from kubernetes.client.models import (V1Affinity, V1Container, V1ContainerPort,
+                                      V1EndpointAddress, V1EndpointPort,
+                                      V1Endpoints, V1EndpointSubset, V1EnvVar,
+                                      V1Lifecycle, V1LocalObjectReference,
+                                      V1NodeAffinity, V1NodeSelector,
+                                      V1NodeSelectorRequirement,
+                                      V1NodeSelectorTerm, V1ObjectMeta,
+                                      V1PersistentVolumeClaim,
+                                      V1PersistentVolumeClaimSpec, V1Pod,
+                                      V1PodAffinity, V1PodAffinityTerm,
+                                      V1PodAntiAffinity, V1PodSecurityContext,
+                                      V1PodSpec, V1PreferredSchedulingTerm,
+                                      V1ResourceRequirements, V1Secret,
+                                      V1SecurityContext, V1Service,
+                                      V1ServicePort, V1ServiceSpec,
+                                      V1Toleration, V1Volume, V1VolumeMount,
+                                      V1WeightedPodAffinityTerm)
 from kubespawner.utils import get_k8s_model, update_k8s_model
 
-from kubernetes.client.models import (
-    V1Pod, V1PodSpec, V1PodSecurityContext,
-    V1ObjectMeta,
-    V1LocalObjectReference,
-    V1Volume, V1VolumeMount,
-    V1Container, V1ContainerPort, V1SecurityContext, V1EnvVar, V1ResourceRequirements, V1Lifecycle,
-    V1PersistentVolumeClaim, V1PersistentVolumeClaimSpec,
-    V1Endpoints, V1EndpointSubset, V1EndpointAddress, V1EndpointPort,
-    V1Service, V1ServiceSpec, V1ServicePort,
-    V1Toleration,
-    V1Affinity,
-    V1NodeAffinity, V1NodeSelector, V1NodeSelectorTerm, V1PreferredSchedulingTerm, V1NodeSelectorRequirement,
-    V1PodAffinity, V1PodAntiAffinity, V1WeightedPodAffinityTerm, V1PodAffinityTerm,
-)
+
+def ssl_enabled(env):
+    return 'JUPYTERHUB_SSL_KEYFILE' in env and 'JUPYTERHUB_SSL_CERTFILE' in env
 
 def make_pod(
     name,
@@ -235,6 +243,36 @@ def make_pod(
         image_secret = V1LocalObjectReference()
         image_secret.name = image_pull_secret
         pod.spec.image_pull_secrets.append(image_secret)
+
+    if ssl_enabled(env):
+        key_name = 'user-'+env['JUPYTERHUB_USER']
+        volumes.append({
+            'name':'ssl',
+            'secret': {
+                'secretName': name,
+                'defaultMode': 511,
+                'items': [
+                    {
+                        'key': "key",
+                        'path': '{}/{}.key'.format(key_name, key_name)
+                    },
+                    {
+                        'key': "crt",
+                        'path': '{}/{}.crt'.format(key_name, key_name)
+                    },
+                    {
+                        'key': "notebooks-ca_trust.crt",
+                        'path': 'notebooks-ca_trust.crt'
+                    }
+                ]
+            }
+        })
+
+        if not working_dir:
+            raise Exception('working_dir must be specified when ssl is enabled')
+
+        mountPath = os.path.dirname(os.path.dirname(working_dir+'/'+env['JUPYTERHUB_SSL_KEYFILE']))
+        volume_mounts.append({'name': 'ssl', 'mountPath': mountPath})
 
     if node_selector:
         pod.spec.node_selector = node_selector
@@ -566,3 +604,56 @@ def make_ingress(
     )
 
     return endpoint, service, ingress
+
+
+def make_secret(
+    name,
+    env=None,
+    labels=None,
+    annotations=None,
+):
+    """
+    Make a k8s secret specification for mount ssl credentials for running a user notebook.
+
+    Parameters
+    ----------
+    name:
+        Name of the secret. Must be unique within the namespace the object is
+        going to be created in.
+    env:
+        Dictionary of environment variables.
+    labels:
+        Labels to add to the spawned pod.
+    annotations:
+        Annotations to add to the spawned pod.
+
+    """
+
+    if not ssl_enabled(env):
+        return None
+
+    secret = V1Secret()
+    secret.kind = "Secret"
+    secret.api_version = "v1"
+    secret.metadata = V1ObjectMeta()
+    secret.metadata.name = name
+    secret.metadata.annotations = (annotations or {}).copy()
+    secret.metadata.labels = (labels or {}).copy()
+
+    secret.data = {}
+    with open(env['JUPYTERHUB_SSL_KEYFILE'], 'r') as file:
+        encoded = base64.b64encode(file.read().encode("utf-8"))
+        secret.data['key'] = encoded.decode("utf-8")
+    with open(env['JUPYTERHUB_SSL_CERTFILE'], 'r') as file:
+        encoded = base64.b64encode(file.read().encode("utf-8"))
+        secret.data['crt'] = encoded.decode("utf-8")
+    with open(env['JUPYTERHUB_SSL_CLIENT_CA'], 'r') as file:
+        encoded = base64.b64encode(file.read().encode("utf-8"))
+        secret.data["notebooks-ca_trust.crt"] = encoded.decode("utf-8")
+
+    folder = os.path.dirname(env['JUPYTERHUB_SSL_CLIENT_CA'])
+    with open(folder+'/hub-ca_trust.crt', 'r') as file:
+        encoded = base64.b64encode(file.read().encode("utf-8"))
+        secret.data["notebooks-ca_trust.crt"] = secret.data["notebooks-ca_trust.crt"] + encoded.decode("utf-8")
+
+    return secret
