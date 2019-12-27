@@ -180,7 +180,6 @@ class KubeSpawner(Spawner):
 
         self.dns_name = self.dns_name_template.format(namespace=self.namespace, service=self.pod_name)
 
-        print(self.ssl_alt_names)
         self.ssl_alt_names.append("DNS:"+self.dns_name)
         self.ssl_alt_names_include_local=False
 
