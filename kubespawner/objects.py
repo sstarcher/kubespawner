@@ -688,9 +688,6 @@ def make_service(
 
     """
 
-    if not ssl_enabled(env):
-        return None
-
     service = V1Service(
         kind='Service',
         metadata=V1ObjectMeta(
