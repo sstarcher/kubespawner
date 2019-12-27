@@ -698,7 +698,7 @@ def make_service(
         spec=V1ServiceSpec(
             type='ClusterIP',
             ports=[V1ServicePort(port=port, target_port=port)],
-            selector=V1LabelSelector({'content': 'jupyter'})
+            selector={'content': 'jupyter'}
         )
     )
 
