@@ -1331,7 +1331,7 @@ class KubeSpawner(Spawner):
         # Default set of labels, picked up from
         # https://github.com/kubernetes/helm/blob/master/docs/chart_best_practices/labels.md
         labels = {
-            'hub.jupyter.org/username': self.user.name
+            'hub.jupyter.org/username': self.pod_name
         }
         labels.update(extra_labels)
         labels.update(self.common_labels)
