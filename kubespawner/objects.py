@@ -698,7 +698,10 @@ def make_service(
         spec=V1ServiceSpec(
             type='ClusterIP',
             ports=[V1ServicePort(port=port, target_port=port)],
-            selector={'content': 'jupyter'}
+            selector={
+                'component': 'singleuser-server',
+                'hub.jupyter.org/username': labels['hub.jupyter.org/username']
+            }
         )
     )
 

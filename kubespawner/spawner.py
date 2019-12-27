@@ -177,14 +177,10 @@ class KubeSpawner(Spawner):
 
         # runs during both test and normal execution
         self.pod_name = self._expand_user_properties(self.pod_name_template)
-        print('pod name')
-        print(self.pod_name)
         self.dns_name = self.dns_name_template.format(namespace=self.namespace, service=self.pod_name)
 
         self.ssl_alt_names.append("DNS:"+self.dns_name)
         self.ssl_alt_names_include_local=False
-        print('pod name 2')
-        print(self.pod_name)
         self.pvc_name = self._expand_user_properties(self.pvc_name_template)
         if self.working_dir:
             self.working_dir = self._expand_user_properties(self.working_dir)
@@ -1334,7 +1330,9 @@ class KubeSpawner(Spawner):
     def _build_common_labels(self, extra_labels):
         # Default set of labels, picked up from
         # https://github.com/kubernetes/helm/blob/master/docs/chart_best_practices/labels.md
-        labels = {}
+        labels = {
+            'hub.jupyter.org/username': self.user.name
+        }
         labels.update(extra_labels)
         labels.update(self.common_labels)
         return labels
@@ -1390,8 +1388,6 @@ class KubeSpawner(Spawner):
         labels = self._build_pod_labels(self._expand_all(self.extra_labels))
         annotations = self._build_common_annotations(self._expand_all(self.extra_annotations))
 
-        print('pod name 3')
-        print(self.pod_name)
         return make_pod(
             name=self.pod_name,
             cmd=real_cmd,
@@ -1441,7 +1437,7 @@ class KubeSpawner(Spawner):
         Make a secret manifest that contains the ssl certificates.
         """
 
-        labels = self._build_pod_labels(self._expand_all(self.extra_labels))
+        labels = self._build_common_labels(self._expand_all(self.extra_labels))
         annotations = self._build_common_annotations(self._expand_all(self.extra_annotations))
 
         return make_secret(
@@ -1457,11 +1453,9 @@ class KubeSpawner(Spawner):
         Make a service manifest for dns.
         """
 
-        labels = self._build_pod_labels(self._expand_all(self.extra_labels))
+        labels = self._build_common_labels(self._expand_all(self.extra_labels))
         annotations = self._build_common_annotations(self._expand_all(self.extra_annotations))
 
-        print('pod name 4')
-        print(self.pod_name)
         return make_service(
             name=self.pod_name,
             port=self.port,
@@ -1912,8 +1906,6 @@ class KubeSpawner(Spawner):
                 ),
             )
 
-        print('pod name 5')
-        print(self.pod_name)
         return (self.dns_name, self.port)
 
     @gen.coroutine
