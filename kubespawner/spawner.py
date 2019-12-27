@@ -28,7 +28,7 @@ from jupyterhub.traitlets import Command
 from jupyterhub.utils import exponential_backoff
 from kubernetes import client
 from kubernetes.client.rest import ApiException
-from kubespawner.objects import make_pod, make_pvc, make_secret
+from kubespawner.objects import make_pod, make_pvc, make_secret, make_service
 from kubespawner.reflector import NamespacedResourceReflector
 from kubespawner.traitlets import Callable
 from traitlets import (Bool, Dict, Integer, List, Unicode, Union, default,
@@ -177,6 +177,13 @@ class KubeSpawner(Spawner):
 
         # runs during both test and normal execution
         self.pod_name = self._expand_user_properties(self.pod_name_template)
+
+        self.dns_name = self.dns_name_template.format(namespace=self.namespace, service=self.pod_name)
+
+        print(self.ssl_alt_names)
+        self.ssl_alt_names.append("DNS:"+self.dns_name)
+        self.ssl_alt_names_include_local=False
+
         self.pvc_name = self._expand_user_properties(self.pvc_name_template)
         if self.working_dir:
             self.working_dir = self._expand_user_properties(self.working_dir)
@@ -233,19 +240,8 @@ class KubeSpawner(Spawner):
                 return f.read().strip()
         return 'default'
 
-    ip = Unicode(
-        '0.0.0.0',
-        config=True,
-        help="""
-        The IP address (or hostname) the single-user server should listen on.
-
-        We override this from the parent so we can set a more sane default for
-        the Kubernetes setup.
-        """
-    )
-
     cmd = Command(
-        None,
+        ['jupyterhub-singleuser'],
         allow_none=True,
         minlen=0,
         config=True,
@@ -294,6 +290,14 @@ class KubeSpawner(Spawner):
         WARNING: Be careful with this configuration! Make sure the service account being mounted
         has the minimal permissions needed, and nothing more. When misconfigured, this can easily
         give arbitrary users root over your entire cluster.
+        """
+    )
+
+    dns_name_template = Unicode(
+        '{service}.{namespace}.svc.cluster.local',
+        config=True,
+        help="""
+        Template to use to form the dns name for the pod.
         """
     )
 
@@ -1380,7 +1384,7 @@ class KubeSpawner(Spawner):
         if self.cmd:
             real_cmd = self.cmd + self.get_args()
         else:
-            real_cmd = None
+            real_cmd = self.get_args()
 
         labels = self._build_pod_labels(self._expand_all(self.extra_labels))
         annotations = self._build_common_annotations(self._expand_all(self.extra_annotations))
@@ -1444,6 +1448,21 @@ class KubeSpawner(Spawner):
             annotations=annotations,
         )
 
+
+    def get_service_manifest(self):
+        """
+        Make a service manifest for dns.
+        """
+
+        labels = self._build_pod_labels(self._expand_all(self.extra_labels))
+        annotations = self._build_common_annotations(self._expand_all(self.extra_annotations))
+
+        return make_service(
+            name=self.pod_name,
+            port=self.port,
+            labels=labels,
+            annotations=annotations,
+        )
 
     def get_pvc_manifest(self):
         """
@@ -1807,6 +1826,20 @@ class KubeSpawner(Spawner):
                 else:
                     raise
 
+        service = self. get_service_manifest()
+        if service:
+            try:
+                yield self.asynchronize(
+                    self.api.create_namespaced_service,
+                    namespace=self.namespace,
+                    body=service
+                )
+            except ApiException as e:
+                if e.status == 409:
+                    self.log.info("Service " + self.pod_name + " already exists, so did not create new service.")
+                else:
+                    raise
+
         # If we run into a 409 Conflict error, it means a pod with the
         # same name already exists. We stop it, wait for it to stop, and
         # try again. We try 4 times, and if it still fails we give up.
@@ -1873,7 +1906,7 @@ class KubeSpawner(Spawner):
                     ]
                 ),
             )
-        return (pod.status.pod_ip, self.port)
+        return (self.dns_name, self.port)
 
     @gen.coroutine
     def stop(self, now=False):

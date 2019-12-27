@@ -1,7 +1,6 @@
 import os
 import socket
 
-
 c.JupyterHub.spawner_class = 'kubespawner.KubeSpawner'
 
 c.JupyterHub.ip = '0.0.0.0'
@@ -31,5 +30,9 @@ c.KubeSpawner.service_account = 'default'
 c.JupyterHub.authenticator_class = 'dummyauthenticator.DummyAuthenticator'
 
 c.KubeSpawner.storage_pvc_ensure = False
+c.KubeSpawner.working_dir = '/home/jovyan/'
 
 c.JupyterHub.allow_named_servers = True
+c.JupyterHub.internal_ssl = True
+c.JupyterHub.recreate_internal_certs = True
+c.JupyterHub.trusted_alt_names = ['IP:'+host_ip]

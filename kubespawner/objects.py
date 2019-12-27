@@ -10,8 +10,9 @@ from urllib.parse import urlparse
 from kubernetes.client.models import (V1Affinity, V1Container, V1ContainerPort,
                                       V1EndpointAddress, V1EndpointPort,
                                       V1Endpoints, V1EndpointSubset, V1EnvVar,
-                                      V1Lifecycle, V1LocalObjectReference,
-                                      V1NodeAffinity, V1NodeSelector,
+                                      V1LabelSelector, V1Lifecycle,
+                                      V1LocalObjectReference, V1NodeAffinity,
+                                      V1NodeSelector,
                                       V1NodeSelectorRequirement,
                                       V1NodeSelectorTerm, V1ObjectMeta,
                                       V1PersistentVolumeClaim,
@@ -662,3 +663,46 @@ def make_secret(
         secret.data["notebooks-ca_trust.crt"] = secret.data["notebooks-ca_trust.crt"] + encoded.decode("utf-8")
 
     return secret
+
+
+def make_service(
+    name,
+    port,
+    labels=None,
+    annotations=None,
+):
+    """
+    Make a k8s service specification for using dns to communicate with the notebook.
+
+    Parameters
+    ----------
+    name:
+        Name of the service. Must be unique within the namespace the object is
+        going to be created in.
+    env:
+        Dictionary of environment variables.
+    labels:
+        Labels to add to the spawned pod.
+    annotations:
+        Annotations to add to the spawned pod.
+
+    """
+
+    if not ssl_enabled(env):
+        return None
+
+    service = V1Service(
+        kind='Service',
+        metadata=V1ObjectMeta(
+            name=name,
+            annotations=(annotations or {}).copy(),
+            labels=(labels or {}).copy()
+        ),
+        spec=V1ServiceSpec(
+            type='ClusterIP',
+            ports=[V1ServicePort(port=port, target_port=port)],
+            selector=V1LabelSelector({'content': 'jupyter'})
+        )
+    )
+
+    return service
