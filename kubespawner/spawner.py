@@ -1884,10 +1884,13 @@ class KubeSpawner(Spawner):
 
         pod = None
         while pod is None:
+            print("checking")
             pod = self.pod_reflector.pods.get(self.pod_name, None)
             import time
             time.sleep( 5 )
             print(pod)
+        print("finished")
+        print(pod)
 
         if self.internal_ssl_directory:
             secret = self.get_secret_manifest()
