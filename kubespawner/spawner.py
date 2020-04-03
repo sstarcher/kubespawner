@@ -1920,6 +1920,7 @@ class KubeSpawner(Spawner):
                     namespace=self.namespace,
                     body=self.get_secret_manifest(owner)
                 )
+                print('called create secret')
             except ApiException as e:
                 if e.status == 409:
                     self.log.info("Secret " + self.secret_name + " already exists, so did not create new secret.")
@@ -1932,6 +1933,7 @@ class KubeSpawner(Spawner):
                     namespace=self.namespace,
                     body=self.get_service_manifest(owner)
                 )
+                print('called create')
             except ApiException as e:
                 if e.status == 409:
                     self.log.info("Service " + self.pod_name + " already exists, so did not create new service.")
