@@ -1479,7 +1479,7 @@ class KubeSpawner(Spawner):
         return make_secret(
             name=self.secret_name,
             username=self.user.name,
-            cert_path=self.cert_path,
+            cert_paths=self.cert_paths,
             pod_uid=pod_uid,
             labels=labels,
             annotations=annotations,
@@ -2009,7 +2009,7 @@ class KubeSpawner(Spawner):
 
 
         self.log.info("shall we delete")
-        if self.internal_ssl_directory:
+        if self.cert_paths:
             self.log.info("Deleting secret %s", self.secret_name)
             try:
                 yield self.asynchronize(

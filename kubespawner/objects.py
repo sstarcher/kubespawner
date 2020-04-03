@@ -608,7 +608,7 @@ def make_owner_reference(pod_uid):
 def make_secret(
     name,
     username,
-    cert_path,
+    cert_paths,
     pod_uid,
     labels=None,
     annotations=None,
@@ -623,7 +623,7 @@ def make_secret(
         going to be created in.
     username:
         The name of the user notebook.
-    ssl_directory:
+    cert_paths:
         Path to a directory containing all users certificates and keys.
     labels:
         Labels to add to the secret.
@@ -641,23 +641,23 @@ def make_secret(
     secret.metadata.ownerReferences=[make_owner_reference(pod_uid)]
 
     secret.data = {}
-    print(cert_path)
-    user_ssl_key = "{}/user-{}/user-{}.key".format(cert_path, username, username)
+    print(cert_paths)
+    user_ssl_key = "{}/user-{}/user-{}.key".format(cert_paths, username, username)
     with open(user_ssl_key, 'r') as file:
         encoded = base64.b64encode(file.read().encode("utf-8"))
         secret.data['ssl.key'] = encoded.decode("utf-8")
 
-    user_ssl_crt = "{}/user-{}/user-{}.crt".format(cert_path, username, username)
+    user_ssl_crt = "{}/user-{}/user-{}.crt".format(cert_paths, username, username)
     with open(user_ssl_crt, 'r') as file:
         encoded = base64.b64encode(file.read().encode("utf-8"))
         secret.data['ssl.crt'] = encoded.decode("utf-8")
 
-    notebook_ca = "{}/notebooks-ca/notebooks-ca.crt".format(cert_path)
+    notebook_ca = "{}/notebooks-ca/notebooks-ca.crt".format(cert_paths)
     with open(notebook_ca, 'r') as file:
         encoded = base64.b64encode(file.read().encode("utf-8"))
         secret.data["notebooks-ca_trust.crt"] = encoded.decode("utf-8")
 
-    hub_ca_trust = "{}/hub-ca_trust.crt".format(cert_path)
+    hub_ca_trust = "{}/hub-ca_trust.crt".format(cert_paths)
     with open(hub_ca_trust, 'r') as file:
         encoded = base64.b64encode(file.read().encode("utf-8"))
         secret.data["notebooks-ca_trust.crt"] = secret.data["notebooks-ca_trust.crt"] + encoded.decode("utf-8")
