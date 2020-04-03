@@ -654,10 +654,9 @@ def make_secret(
         encoded = base64.b64encode(file.read().encode("utf-8"))
         secret.data["notebooks-ca_trust.crt"] = encoded.decode("utf-8")
 
-    # hub_ca_trust = "{}/hub-ca_trust.crt".format(cert_paths)
-    # with open(hub_ca_trust, 'r') as file:
-    #     encoded = base64.b64encode(file.read().encode("utf-8"))
-    #     secret.data["notebooks-ca_trust.crt"] = secret.data["notebooks-ca_trust.crt"] + encoded.decode("utf-8")
+    with open(cert_paths['hub-ca'], 'r') as file:
+        encoded = base64.b64encode(file.read().encode("utf-8"))
+        secret.data["notebooks-ca_trust.crt"] = secret.data["notebooks-ca_trust.crt"] + encoded.decode("utf-8")
 
     return secret
 

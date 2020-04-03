@@ -1813,7 +1813,9 @@ class KubeSpawner(Spawner):
         self.ssl_alt_names.append("DNS:"+self.dns_name)
         self.ssl_alt_names_include_local=False
         print(self.internal_trust_bundles)
-        return super().create_certs()
+        paths = super().create_certs()
+        paths['hub-ca'] = self.internal_trust_bundles['hub-ca']
+        return paths
 
     _last_event = None
 
