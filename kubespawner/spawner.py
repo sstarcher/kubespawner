@@ -1472,7 +1472,7 @@ class KubeSpawner(Spawner):
         )
 
 
-    def get_secret_manifest(self):
+    def get_secret_manifest(self, uid):
         """
         Make a secret manifest that contains the ssl certificates.
         """
@@ -1489,7 +1489,7 @@ class KubeSpawner(Spawner):
         )
 
 
-    def get_service_manifest(self):
+    def get_service_manifest(self, uid):
         """
         Make a service manifest for dns.
         """
@@ -1541,6 +1541,18 @@ class KubeSpawner(Spawner):
             all([cs.ready for cs in pod.status.container_statuses])
         )
         return is_running
+
+
+    def get_pod_uid(self, pod):
+        """
+        Check if the given pod exists and fetch it's UID
+
+        pod must be a dictionary representing a Pod kubernetes API object.
+        """
+
+        if pod and pod.metadata and pod.metadata.uid:
+            return pod.metadata.uid
+        return None
 
     def get_state(self):
         """
@@ -1882,20 +1894,15 @@ class KubeSpawner(Spawner):
             raise Exception(
                 'Can not create user pod %s already exists & could not be deleted' % self.pod_name)
 
-        uid = None
-        while uid is None:
-            print("checking")
-            pod = self.pod_reflector.pods.get(self.pod_name, None)
-            import time
-            time.sleep( 5 )
-            if pod and pod.metadata and pod.metadata.uid:
-                uid = pod.metadata.uid
-                break
-
-        print(uid)
-
         if self.internal_ssl_directory:
-            secret = self.get_secret_manifest()
+            yield exponential_backoff(
+                lambda: self.get_pod_uid(self.pod_reflector.pods.get(self.pod_name, None)),
+                'pod/%s does not exist in %s seconds!' % (self.pod_name, self.start_timeout),
+                timeout=self.start_timeout,
+            )
+
+            uid = self.get_pod_uid(self.pod_reflector.pods.get(self.pod_name, None))
+            secret = self.get_secret_manifest(uid)
             if secret:
                 try:
                     yield self.asynchronize(
@@ -1909,7 +1916,7 @@ class KubeSpawner(Spawner):
                     else:
                         raise
 
-            service = self.get_service_manifest()
+            service = self.get_service_manifest(uid)
             if service:
                 try:
                     yield self.asynchronize(
