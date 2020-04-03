@@ -1812,6 +1812,7 @@ class KubeSpawner(Spawner):
         self.secret_name = self._expand_user_properties(self.secret_name_template)
         self.ssl_alt_names.append("DNS:"+self.dns_name)
         self.ssl_alt_names_include_local=False
+        print(self.internal_trust_bundles)
         return super().create_certs()
 
     _last_event = None
