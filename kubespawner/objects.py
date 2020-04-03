@@ -641,26 +641,23 @@ def make_secret(
     secret.metadata.ownerReferences=[owner]
 
     secret.data = {}
-    print(cert_paths)
-    user_ssl_key = "{}/user-{}/user-{}.key".format(cert_paths, username, username)
-    with open(user_ssl_key, 'r') as file:
+
+    with open(cert_paths['keyfile'], 'r') as file:
         encoded = base64.b64encode(file.read().encode("utf-8"))
         secret.data['ssl.key'] = encoded.decode("utf-8")
 
-    user_ssl_crt = "{}/user-{}/user-{}.crt".format(cert_paths, username, username)
-    with open(user_ssl_crt, 'r') as file:
+    with open(cert_paths['certfile'], 'r') as file:
         encoded = base64.b64encode(file.read().encode("utf-8"))
         secret.data['ssl.crt'] = encoded.decode("utf-8")
 
-    notebook_ca = "{}/notebooks-ca/notebooks-ca.crt".format(cert_paths)
-    with open(notebook_ca, 'r') as file:
+    with open(cert_paths['cafile'], 'r') as file:
         encoded = base64.b64encode(file.read().encode("utf-8"))
         secret.data["notebooks-ca_trust.crt"] = encoded.decode("utf-8")
 
-    hub_ca_trust = "{}/hub-ca_trust.crt".format(cert_paths)
-    with open(hub_ca_trust, 'r') as file:
-        encoded = base64.b64encode(file.read().encode("utf-8"))
-        secret.data["notebooks-ca_trust.crt"] = secret.data["notebooks-ca_trust.crt"] + encoded.decode("utf-8")
+    # hub_ca_trust = "{}/hub-ca_trust.crt".format(cert_paths)
+    # with open(hub_ca_trust, 'r') as file:
+    #     encoded = base64.b64encode(file.read().encode("utf-8"))
+    #     secret.data["notebooks-ca_trust.crt"] = secret.data["notebooks-ca_trust.crt"] + encoded.decode("utf-8")
 
     return secret
 
