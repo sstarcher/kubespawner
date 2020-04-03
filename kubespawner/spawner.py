@@ -1882,8 +1882,13 @@ class KubeSpawner(Spawner):
             raise Exception(
                 'Can not create user pod %s already exists & could not be deleted' % self.pod_name)
 
-        pod = self.pod_reflector.pods.get(self.pod_name, None)
-        print(pod)
+        pod = None
+        while pod is None:
+            pod = self.pod_reflector.pods.get(self.pod_name, None)
+            import time
+            time.sleep( 5 )
+            print(pod)
+
         if self.internal_ssl_directory:
             secret = self.get_secret_manifest()
             if secret:
