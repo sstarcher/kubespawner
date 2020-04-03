@@ -1479,7 +1479,7 @@ class KubeSpawner(Spawner):
         return make_secret(
             name=self.secret_name,
             username=self.user.name,
-            ssl_directory=self.internal_ssl_directory,
+            cert_path=self.cert_path,
             pod_uid=pod_uid,
             labels=labels,
             annotations=annotations,

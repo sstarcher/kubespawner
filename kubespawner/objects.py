@@ -608,7 +608,7 @@ def make_owner_reference(pod_uid):
 def make_secret(
     name,
     username,
-    ssl_directory,
+    cert_path,
     pod_uid,
     labels=None,
     annotations=None,
@@ -641,22 +641,23 @@ def make_secret(
     secret.metadata.ownerReferences=[make_owner_reference(pod_uid)]
 
     secret.data = {}
-    user_ssl_key = "{}/user-{}/user-{}.key".format(ssl_directory, username, username)
+    print(cert_path)
+    user_ssl_key = "{}/user-{}/user-{}.key".format(cert_path, username, username)
     with open(user_ssl_key, 'r') as file:
         encoded = base64.b64encode(file.read().encode("utf-8"))
         secret.data['ssl.key'] = encoded.decode("utf-8")
 
-    user_ssl_crt = "{}/user-{}/user-{}.crt".format(ssl_directory, username, username)
+    user_ssl_crt = "{}/user-{}/user-{}.crt".format(cert_path, username, username)
     with open(user_ssl_crt, 'r') as file:
         encoded = base64.b64encode(file.read().encode("utf-8"))
         secret.data['ssl.crt'] = encoded.decode("utf-8")
 
-    notebook_ca = "{}/notebooks-ca/notebooks-ca.crt".format(ssl_directory)
+    notebook_ca = "{}/notebooks-ca/notebooks-ca.crt".format(cert_path)
     with open(notebook_ca, 'r') as file:
         encoded = base64.b64encode(file.read().encode("utf-8"))
         secret.data["notebooks-ca_trust.crt"] = encoded.decode("utf-8")
 
-    hub_ca_trust = "{}/hub-ca_trust.crt".format(ssl_directory)
+    hub_ca_trust = "{}/hub-ca_trust.crt".format(cert_path)
     with open(hub_ca_trust, 'r') as file:
         encoded = base64.b64encode(file.read().encode("utf-8"))
         secret.data["notebooks-ca_trust.crt"] = secret.data["notebooks-ca_trust.crt"] + encoded.decode("utf-8")
