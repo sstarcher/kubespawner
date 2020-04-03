@@ -1888,8 +1888,8 @@ class KubeSpawner(Spawner):
             pod = self.pod_reflector.pods.get(self.pod_name, None)
             import time
             time.sleep( 5 )
-            if pod and pod['metadata'] and pod['metadata']['uid']:
-                uid = pod['metadata']['uid']
+            if pod and pod.metadata and pod.metadata.uid:
+                uid = pod.metadata.uid
                 break
 
         print(uid)
