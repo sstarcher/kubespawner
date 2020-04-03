@@ -374,7 +374,7 @@ class KubeSpawner(Spawner):
         allow_none=True,
         config=True,
         help="""
-        Location of JupyterHub's internal_ssl directory.  This directory is managed by JupyterHub itself.  
+        Location of JupyterHub's internal_ssl directory.  This directory is managed by JupyterHub itself.
         See https://jupyterhub.readthedocs.io/en/stable/api/app.html
         """
     )
@@ -1852,35 +1852,6 @@ class KubeSpawner(Spawner):
                 else:
                     raise
 
-        if self.internal_ssl_directory:
-            secret = self.get_secret_manifest()
-            if secret:
-                try:
-                    yield self.asynchronize(
-                        self.api.create_namespaced_secret,
-                        namespace=self.namespace,
-                        body=secret
-                    )
-                except ApiException as e:
-                    if e.status == 409:
-                        self.log.info("Secret " + self.secret_name + " already exists, so did not create new secret.")
-                    else:
-                        raise
-
-            service = self.get_service_manifest()
-            if service:
-                try:
-                    yield self.asynchronize(
-                        self.api.create_namespaced_service,
-                        namespace=self.namespace,
-                        body=service
-                    )
-                except ApiException as e:
-                    if e.status == 409:
-                        self.log.info("Service " + self.pod_name + " already exists, so did not create new service.")
-                    else:
-                        raise
-
         # If we run into a 409 Conflict error, it means a pod with the
         # same name already exists. We stop it, wait for it to stop, and
         # try again. We try 4 times, and if it still fails we give up.
@@ -1910,6 +1881,37 @@ class KubeSpawner(Spawner):
         else:
             raise Exception(
                 'Can not create user pod %s already exists & could not be deleted' % self.pod_name)
+
+
+        print(pod)
+        if self.internal_ssl_directory:
+            secret = self.get_secret_manifest()
+            if secret:
+                try:
+                    yield self.asynchronize(
+                        self.api.create_namespaced_secret,
+                        namespace=self.namespace,
+                        body=secret
+                    )
+                except ApiException as e:
+                    if e.status == 409:
+                        self.log.info("Secret " + self.secret_name + " already exists, so did not create new secret.")
+                    else:
+                        raise
+
+            service = self.get_service_manifest()
+            if service:
+                try:
+                    yield self.asynchronize(
+                        self.api.create_namespaced_service,
+                        namespace=self.namespace,
+                        body=service
+                    )
+                except ApiException as e:
+                    if e.status == 409:
+                        self.log.info("Service " + self.pod_name + " already exists, so did not create new service.")
+                    else:
+                        raise
 
         # we need a timeout here even though start itself has a timeout
         # in order for this coroutine to finish at some point.
