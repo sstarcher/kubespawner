@@ -1915,8 +1915,8 @@ class KubeSpawner(Spawner):
             print(pod.metadata.uid)
 
             try:
-                yield self.asynchronize(
-                    self.api.create_namespaced_secret,
+                print('create secert')
+                self.api.create_namespaced_secret(
                     namespace=self.namespace,
                     body=self.get_secret_manifest(owner)
                 )
@@ -1927,8 +1927,8 @@ class KubeSpawner(Spawner):
                     raise
 
             try:
-                yield self.asynchronize(
-                    self.api.create_namespaced_service,
+                print('create name')
+                self.api.create_namespaced_service(
                     namespace=self.namespace,
                     body=self.get_service_manifest(owner)
                 )
