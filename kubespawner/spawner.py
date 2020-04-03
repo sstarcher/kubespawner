@@ -1550,6 +1550,7 @@ class KubeSpawner(Spawner):
         pod must be a dictionary representing a Pod kubernetes API object.
         """
 
+        print("attempting to get uid")
         if pod and pod.metadata and pod.metadata.uid:
             return pod.metadata.uid
         return None
@@ -1902,7 +1903,9 @@ class KubeSpawner(Spawner):
             raise Exception(
                 'Can not create user pod %s already exists & could not be deleted' % self.pod_name)
 
+        print("get ssl ready")
         if self.cert_paths:
+            print("yielding to backoff")
             yield exponential_backoff(
                 lambda: self.get_pod_uid(self.pod_reflector.pods.get(self.pod_name, None)),
                 'pod/%s does not exist!' % (self.pod_name),
@@ -1910,6 +1913,10 @@ class KubeSpawner(Spawner):
 
             uid = self.get_pod_uid(self.pod_reflector.pods.get(self.pod_name, None))
             owner = make_owner_reference(uid, self.pod_name)
+
+            print("got uid")
+            print(uid)
+
             try:
                 yield self.asynchronize(
                     self.api.create_namespaced_secret,
