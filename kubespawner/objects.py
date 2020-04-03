@@ -599,17 +599,17 @@ def make_ingress(
 
     return endpoint, service, ingress
 
-def make_owner_reference(pod_uid):
+def make_owner_reference(name, uid):
     """
     Returns a owner reference object for garbage collection.
     """
-    return V1OwnerReference(api_version="v1", kind="Pod", uid=pod_uid)
+    return V1OwnerReference(api_version="v1", kind="Pod", name=name, uid=pod_uid)
 
 def make_secret(
     name,
     username,
     cert_paths,
-    pod_uid,
+    owner,
     labels=None,
     annotations=None,
 ):
@@ -638,7 +638,7 @@ def make_secret(
     secret.metadata.name = name
     secret.metadata.annotations = (annotations or {}).copy()
     secret.metadata.labels = (labels or {}).copy()
-    secret.metadata.ownerReferences=[make_owner_reference(pod_uid)]
+    secret.metadata.ownerReferences=[owner]
 
     secret.data = {}
     print(cert_paths)
@@ -669,7 +669,7 @@ def make_service(
     name,
     port,
     servername,
-    pod_uid,
+    owner,
     labels=None,
     annotations=None,
 ):
@@ -694,7 +694,7 @@ def make_service(
         name=name,
         annotations=(annotations or {}).copy(),
         labels=(labels or {}).copy(),
-        ownerReferences=[make_owner_reference(pod_uid)],
+        ownerReferences=[owner],
     )
 
     service = V1Service(

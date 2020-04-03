@@ -28,7 +28,8 @@ from jupyterhub.traitlets import Command
 from jupyterhub.utils import exponential_backoff
 from kubernetes import client
 from kubernetes.client.rest import ApiException
-from kubespawner.objects import make_pod, make_pvc, make_secret, make_service
+from kubespawner.objects import (make_owner_reference, make_pod, make_pvc,
+                                 make_secret, make_service)
 from kubespawner.reflector import NamespacedResourceReflector
 from kubespawner.traitlets import Callable
 from traitlets import (Bool, Dict, Integer, List, Unicode, Union, default,
@@ -1468,7 +1469,7 @@ class KubeSpawner(Spawner):
         )
 
 
-    def get_secret_manifest(self, pod_uid):
+    def get_secret_manifest(self, owner):
         """
         Make a secret manifest that contains the ssl certificates.
         """
@@ -1480,13 +1481,13 @@ class KubeSpawner(Spawner):
             name=self.secret_name,
             username=self.user.name,
             cert_paths=self.cert_paths,
-            pod_uid=pod_uid,
+            owner=owner,
             labels=labels,
             annotations=annotations,
         )
 
 
-    def get_service_manifest(self, pod_uid):
+    def get_service_manifest(self, owner):
         """
         Make a service manifest for dns.
         """
@@ -1498,7 +1499,7 @@ class KubeSpawner(Spawner):
             name=self.pod_name,
             port=self.port,
             servername=self.name,
-            pod_uid=pod_uid,
+            owner=owner,
             labels=labels,
             annotations=annotations,
         )
@@ -1906,11 +1907,12 @@ class KubeSpawner(Spawner):
             )
 
             uid = self.get_pod_uid(self.pod_reflector.pods.get(self.pod_name, None))
+            owner = make_owner_reference(uid, self.pod_name)
             try:
                 yield self.asynchronize(
                     self.api.create_namespaced_secret,
                     namespace=self.namespace,
-                    body=self.get_secret_manifest(uid)
+                    body=self.get_secret_manifest(owner)
                 )
             except ApiException as e:
                 if e.status == 409:
@@ -1922,7 +1924,7 @@ class KubeSpawner(Spawner):
                 yield self.asynchronize(
                     self.api.create_namespaced_service,
                     namespace=self.namespace,
-                    body=self.get_service_manifest(uid)
+                    body=self.get_service_manifest(owner)
                 )
             except ApiException as e:
                 if e.status == 409:
