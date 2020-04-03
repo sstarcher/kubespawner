@@ -365,16 +365,6 @@ class KubeSpawner(Spawner):
         """
     )
 
-    internal_ssl_directory = Unicode(
-        None,
-        allow_none=True,
-        config=True,
-        help="""
-        Location of JupyterHub's internal_ssl directory.  This directory is managed by JupyterHub itself.
-        See https://jupyterhub.readthedocs.io/en/stable/api/app.html
-        """
-    )
-
     secret_mount_path = Unicode(
         "/etc/jupyterhub/ssl/",
         allow_none=False,
@@ -1909,7 +1899,7 @@ class KubeSpawner(Spawner):
             raise Exception(
                 'Can not create user pod %s already exists & could not be deleted' % self.pod_name)
 
-        if self.internal_ssl_directory:
+        if self.cert_paths:
             yield exponential_backoff(
                 lambda: self.get_pod_uid(self.pod_reflector.pods.get(self.pod_name, None)),
                 'pod/%s does not exist!' % (self.pod_name, self.start_timeout),
