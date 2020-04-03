@@ -1902,7 +1902,7 @@ class KubeSpawner(Spawner):
         if self.cert_paths:
             yield exponential_backoff(
                 lambda: self.get_pod_uid(self.pod_reflector.pods.get(self.pod_name, None)),
-                'pod/%s does not exist!' % (self.pod_name, self.start_timeout),
+                'pod/%s does not exist!' % (self.pod_name),
             )
 
             uid = self.get_pod_uid(self.pod_reflector.pods.get(self.pod_name, None))
