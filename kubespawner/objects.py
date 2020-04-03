@@ -609,6 +609,7 @@ def make_secret(
     name,
     username,
     cert_paths,
+    hub_ca,
     owner,
     labels=None,
     annotations=None,
@@ -625,6 +626,8 @@ def make_secret(
         The name of the user notebook.
     cert_paths:
         Path to a directory containing all users certificates and keys.
+    hub_ca:
+        Path to the hub certificate authority
     labels:
         Labels to add to the secret.
     annotations:
@@ -654,7 +657,7 @@ def make_secret(
         encoded = base64.b64encode(file.read().encode("utf-8"))
         secret.data["notebooks-ca_trust.crt"] = encoded.decode("utf-8")
 
-    with open(cert_paths['hub-ca'], 'r') as file:
+    with open(hub_ca, 'r') as file:
         encoded = base64.b64encode(file.read().encode("utf-8"))
         secret.data["notebooks-ca_trust.crt"] = secret.data["notebooks-ca_trust.crt"] + encoded.decode("utf-8")
 

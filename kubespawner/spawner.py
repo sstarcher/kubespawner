@@ -1481,6 +1481,7 @@ class KubeSpawner(Spawner):
             name=self.secret_name,
             username=self.user.name,
             cert_paths=self.cert_paths,
+            hub_ca=self.internal_trust_bundles['hub-ca'],
             owner=owner,
             labels=labels,
             annotations=annotations,
@@ -1814,11 +1815,6 @@ class KubeSpawner(Spawner):
         self.ssl_alt_names_include_local=False
 
         return super().create_certs()
-
-    def move_certs(self, paths):
-        print(paths)
-        paths['hub-ca'] = self.internal_trust_bundles['hub-ca']
-        return paths
 
     _last_event = None
 
