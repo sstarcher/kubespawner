@@ -182,12 +182,8 @@ class KubeSpawner(Spawner):
         # runs during both test and normal execution
         self.pod_name = self._expand_user_properties(self.pod_name_template)
         self.dns_name = self.dns_name_template.format(namespace=self.namespace, service=self.pod_name)
-
         self.secret_name = None
-        if self.internal_ssl_directory:
-            self.secret_name = self._expand_user_properties(self.secret_name_template)
-            self.ssl_alt_names.append("DNS:"+self.dns_name)
-            self.ssl_alt_names_include_local=False
+
 
         self.pvc_name = self._expand_user_properties(self.pvc_name_template)
         if self.working_dir:
@@ -376,6 +372,15 @@ class KubeSpawner(Spawner):
         help="""
         Location of JupyterHub's internal_ssl directory.  This directory is managed by JupyterHub itself.
         See https://jupyterhub.readthedocs.io/en/stable/api/app.html
+        """
+    )
+
+    secret_mount_path = Unicode(
+        "/etc/jupyterhub/ssl/",
+        allow_none=False,
+        config=True,
+        help="""
+        Location of the Spawned pod's ssl directory when JupyterHub has internal_ssl enabled.
         """
     )
 
@@ -1468,11 +1473,12 @@ class KubeSpawner(Spawner):
             pod_anti_affinity_required=self.pod_anti_affinity_required,
             priority_class_name=self.priority_class_name,
             ssl_secret_name=self.secret_name,
+            ssl_secret_mount_path=self.secret_mount_path,
             logger=self.log,
         )
 
 
-    def get_secret_manifest(self, uid):
+    def get_secret_manifest(self, pod_uid):
         """
         Make a secret manifest that contains the ssl certificates.
         """
@@ -1484,12 +1490,13 @@ class KubeSpawner(Spawner):
             name=self.secret_name,
             username=self.user.name,
             ssl_directory=self.internal_ssl_directory,
+            pod_uid=pod_uid,
             labels=labels,
             annotations=annotations,
         )
 
 
-    def get_service_manifest(self, uid):
+    def get_service_manifest(self, pod_uid):
         """
         Make a service manifest for dns.
         """
@@ -1501,6 +1508,7 @@ class KubeSpawner(Spawner):
             name=self.pod_name,
             port=self.port,
             servername=self.name,
+            pod_uid=pod_uid,
             labels=labels,
             annotations=annotations,
         )
@@ -1808,6 +1816,13 @@ class KubeSpawner(Spawner):
         self._start_future = self._start()
         return self._start_future
 
+    def create_certs(self):
+        """Set DNS alt name prior to cert creation"""
+        self.secret_name = self._expand_user_properties(self.secret_name_template)
+        self.ssl_alt_names.append("DNS:"+self.dns_name)
+        self.ssl_alt_names_include_local=False
+        return super().create_certs()
+
     _last_event = None
 
     @gen.coroutine
@@ -1897,38 +1912,33 @@ class KubeSpawner(Spawner):
         if self.internal_ssl_directory:
             yield exponential_backoff(
                 lambda: self.get_pod_uid(self.pod_reflector.pods.get(self.pod_name, None)),
-                'pod/%s does not exist in %s seconds!' % (self.pod_name, self.start_timeout),
-                timeout=self.start_timeout,
+                'pod/%s does not exist!' % (self.pod_name, self.start_timeout),
             )
 
             uid = self.get_pod_uid(self.pod_reflector.pods.get(self.pod_name, None))
-            secret = self.get_secret_manifest(uid)
-            if secret:
-                try:
-                    yield self.asynchronize(
-                        self.api.create_namespaced_secret,
-                        namespace=self.namespace,
-                        body=secret
-                    )
-                except ApiException as e:
-                    if e.status == 409:
-                        self.log.info("Secret " + self.secret_name + " already exists, so did not create new secret.")
-                    else:
-                        raise
+            try:
+                yield self.asynchronize(
+                    self.api.create_namespaced_secret,
+                    namespace=self.namespace,
+                    body=self.get_secret_manifest(uid)
+                )
+            except ApiException as e:
+                if e.status == 409:
+                    self.log.info("Secret " + self.secret_name + " already exists, so did not create new secret.")
+                else:
+                    raise
 
-            service = self.get_service_manifest(uid)
-            if service:
-                try:
-                    yield self.asynchronize(
-                        self.api.create_namespaced_service,
-                        namespace=self.namespace,
-                        body=service
-                    )
-                except ApiException as e:
-                    if e.status == 409:
-                        self.log.info("Service " + self.pod_name + " already exists, so did not create new service.")
-                    else:
-                        raise
+            try:
+                yield self.asynchronize(
+                    self.api.create_namespaced_service,
+                    namespace=self.namespace,
+                    body=self.get_service_manifest(uid)
+                )
+            except ApiException as e:
+                if e.status == 409:
+                    self.log.info("Service " + self.pod_name + " already exists, so did not create new service.")
+                else:
+                    raise
 
         # we need a timeout here even though start itself has a timeout
         # in order for this coroutine to finish at some point.

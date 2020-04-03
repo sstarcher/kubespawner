@@ -69,7 +69,7 @@ def make_pod(
     pod_anti_affinity_required=None,
     priority_class_name=None,
     ssl_secret_name=None,
-    username=None,
+    ssl_secret_mount_path=None,
     logger=None,
 ):
     """
@@ -225,6 +225,8 @@ def make_pod(
         The name of the PriorityClass to be assigned the pod. This feature is Beta available in K8s 1.11.
     ssl_secret_name:
         Specifies the name of the ssl secret
+    ssl_secret_mount_path:
+        Specifies the name of the ssl secret mount path for the pod
     """
 
     pod = V1Pod()
@@ -257,14 +259,13 @@ def make_pod(
             }
         })
 
-        ssl_path = '/etc/jupyterhub/ssl/'
-        env['JUPYTERHUB_SSL_KEYFILE'] = ssl_path + "ssl.key"
-        env['JUPYTERHUB_SSL_CERTFILE'] = ssl_path + "ssl.crt"
-        env['JUPYTERHUB_SSL_CLIENT_CA'] = ssl_path + "notebooks-ca_trust.crt"
+        env['JUPYTERHUB_SSL_KEYFILE'] = ssl_secret_mount_path + "ssl.key"
+        env['JUPYTERHUB_SSL_CERTFILE'] = ssl_secret_mount_path + "ssl.crt"
+        env['JUPYTERHUB_SSL_CLIENT_CA'] = ssl_secret_mount_path + "notebooks-ca_trust.crt"
 
         if not volume_mounts:
             volume_mounts = []
-        volume_mounts.append({'name': 'jupyterhub-internal-certs', 'mountPath': ssl_path})
+        volume_mounts.append({'name': 'jupyterhub-internal-certs', 'mountPath': ssl_secret_mount_path})
 
     if node_selector:
         pod.spec.node_selector = node_selector
@@ -597,11 +598,17 @@ def make_ingress(
 
     return endpoint, service, ingress
 
+def make_owner_reference(pod_uid):
+    """
+    Returns a owner reference object for garbage collection.
+    """
+    return V1OwnerReference(api_version="v1", kind="Pod", uid=pod_uid)
 
 def make_secret(
     name,
     username,
     ssl_directory,
+    pod_uid,
     labels=None,
     annotations=None,
 ):
@@ -630,6 +637,7 @@ def make_secret(
     secret.metadata.name = name
     secret.metadata.annotations = (annotations or {}).copy()
     secret.metadata.labels = (labels or {}).copy()
+    secret.metadata.ownerReferences=[make_owner_reference(pod_uid)]
 
     secret.data = {}
     user_ssl_key = "{}/user-{}/user-{}.key".format(ssl_directory, username, username)
@@ -659,6 +667,7 @@ def make_service(
     name,
     port,
     servername,
+    pod_uid,
     labels=None,
     annotations=None,
 ):
@@ -682,7 +691,8 @@ def make_service(
     metadata = V1ObjectMeta(
         name=name,
         annotations=(annotations or {}).copy(),
-        labels=(labels or {}).copy()
+        labels=(labels or {}).copy(),
+        ownerReferences=[make_owner_reference(pod_uid)],
     )
 
     service = V1Service(
