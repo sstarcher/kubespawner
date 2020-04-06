@@ -1901,7 +1901,6 @@ class KubeSpawner(Spawner):
 
 
         if self.cert_paths:
-            self.log.info("Create secrets and service ")
             yield exponential_backoff(
                 lambda: self.is_pod_creating(self.pod_reflector.pods.get(self.pod_name, None)),
                 'pod/%s does not exist!' % (self.pod_name),
@@ -1909,20 +1908,13 @@ class KubeSpawner(Spawner):
 
             pod = self.pod_reflector.pods[self.pod_name]
             owner = make_owner_reference(self.pod_name, pod.metadata.uid)
-            print(owner)
-
-            self.log.info("UID " + pod.metadata.uid)
-
-
             try:
-                self.log.info("create secret ")
                 yield self.asynchronize(
                     self.api.create_namespaced_secret,
                     namespace=self.namespace,
                     body=self.get_secret_manifest(owner)
                 )
             except ApiException as e:
-                self.log.info("*************************** WHAT")
                 self.log.info(e)
                 if e.status == 409:
                     self.log.info("Secret " + self.secret_name + " already exists, so did not create new secret.")
@@ -1930,7 +1922,6 @@ class KubeSpawner(Spawner):
                     raise
 
             try:
-                self.log.info("create service ")
                 yield self.asynchronize(
                     self.api.create_namespaced_service,
                     namespace=self.namespace,
@@ -2018,41 +2009,6 @@ class KubeSpawner(Spawner):
             self.log.error("Pod %s did not disappear, restarting pod reflector", self.pod_name)
             self._start_watching_pods(replace=True)
             raise
-
-
-        self.log.info("shall we delete")
-        if self.cert_paths:
-            self.log.info("Deleting secret %s", self.secret_name)
-            try:
-                yield self.asynchronize(
-                    self.api.delete_namespaced_secret,
-                    name=self.secret_name,
-                    namespace=self.namespace
-                )
-            except ApiException as e:
-                if e.status == 404:
-                    self.log.warning(
-                        "No secret %s to delete. Assuming already deleted.",
-                        self.secret_name,
-                    )
-                else:
-                    raise
-
-            self.log.info("Deleting service %s", self.pod_name)
-            try:
-                yield self.asynchronize(
-                    self.api.delete_namespaced_service,
-                    name=self.pod_name,
-                    namespace=self.namespace
-                )
-            except ApiException as e:
-                if e.status == 404:
-                    self.log.warning(
-                        "No service %s to delete. Assuming already deleted.",
-                        self.pod_name,
-                    )
-                else:
-                    raise
 
     @default('env_keep')
     def _env_keep_default(self):
