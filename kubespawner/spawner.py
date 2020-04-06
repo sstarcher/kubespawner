@@ -1900,9 +1900,8 @@ class KubeSpawner(Spawner):
             raise Exception(
                 'Can not create user pod %s already exists & could not be deleted' % self.pod_name)
 
-        print("get ssl ready")
         if self.cert_paths:
-            print("yielding to backoff")
+            self.log.info("Create secrets and service ")
             yield exponential_backoff(
                 lambda: self.is_pod_creating(self.pod_reflector.pods.get(self.pod_name, None)),
                 'pod/%s does not exist!' % (self.pod_name),
@@ -1911,16 +1910,17 @@ class KubeSpawner(Spawner):
             pod = self.pod_reflector.pods[self.pod_name]
             owner = make_owner_reference(pod.metadata.uid, self.pod_name)
 
-            print("got uid")
-            print(pod.metadata.uid)
+
+            self.log.info("UID " + pod.metadata.uid)
+
 
             try:
-                print('create secert')
-                self.api.create_namespaced_secret(
+                self.log.info("create secret ")
+                yield self.asynchronize(
+                    self.api.create_namespaced_secret,
                     namespace=self.namespace,
                     body=self.get_secret_manifest(owner)
                 )
-                print('called create secret')
             except ApiException as e:
                 if e.status == 409:
                     self.log.info("Secret " + self.secret_name + " already exists, so did not create new secret.")
@@ -1928,12 +1928,12 @@ class KubeSpawner(Spawner):
                     raise
 
             try:
-                print('create name')
-                self.api.create_namespaced_service(
+                self.log.info("create service ")
+                yield self.asynchronize(
+                    self.api.create_namespaced_service,
                     namespace=self.namespace,
                     body=self.get_service_manifest(owner)
                 )
-                print('called create')
             except ApiException as e:
                 if e.status == 409:
                     self.log.info("Service " + self.pod_name + " already exists, so did not create new service.")
