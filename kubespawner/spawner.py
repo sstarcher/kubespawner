@@ -1922,6 +1922,7 @@ class KubeSpawner(Spawner):
                     body=self.get_secret_manifest(owner)
                 )
             except ApiException as e:
+                self.log.info("*************************** WHAT")
                 self.log.info(e)
                 if e.status == 409:
                     self.log.info("Secret " + self.secret_name + " already exists, so did not create new secret.")

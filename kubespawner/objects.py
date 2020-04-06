@@ -603,7 +603,7 @@ def make_owner_reference(name, uid):
     """
     Returns a owner reference object for garbage collection.
     """
-    return V1OwnerReference(api_version="v1", kind="Pod", name=name, uid=uid)
+    return V1OwnerReference(api_version="v1", kind="Pod", name=name, uid=uid, block_owner_deletion = true, controller = false)
 
 def make_secret(
     name,
