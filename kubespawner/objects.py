@@ -641,7 +641,7 @@ def make_secret(
     secret.metadata.name = name
     secret.metadata.annotations = (annotations or {}).copy()
     secret.metadata.labels = (labels or {}).copy()
-    secret.metadata.owner_references=[owner]
+    # secret.metadata.owner_references=[owner]
 
     secret.data = {}
 
