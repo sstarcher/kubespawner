@@ -1899,6 +1899,24 @@ class KubeSpawner(Spawner):
             raise Exception(
                 'Can not create user pod %s already exists & could not be deleted' % self.pod_name)
 
+
+
+        secret = self.get_secret_manifest(None)
+        if secret:
+            try:
+                yield self.asynchronize(
+                    self.api.create_namespaced_secret,
+                    namespace=self.namespace,
+                    body=secret
+                )
+            except ApiException as e:
+                if e.status == 409:
+                    self.log.info("Secret " + self.secret_name + " already exists, so did not create new secret.")
+                else:
+                    raise
+
+
+
         if self.cert_paths:
             self.log.info("Create secrets and service ")
             # yield exponential_backoff(
