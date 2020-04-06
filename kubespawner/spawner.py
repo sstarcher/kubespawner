@@ -1902,16 +1902,16 @@ class KubeSpawner(Spawner):
 
         if self.cert_paths:
             self.log.info("Create secrets and service ")
-            # yield exponential_backoff(
-            #     lambda: self.is_pod_creating(self.pod_reflector.pods.get(self.pod_name, None)),
-            #     'pod/%s does not exist!' % (self.pod_name),
-            # )
+            yield exponential_backoff(
+                lambda: self.is_pod_creating(self.pod_reflector.pods.get(self.pod_name, None)),
+                'pod/%s does not exist!' % (self.pod_name),
+            )
 
-            # pod = self.pod_reflector.pods[self.pod_name]
+            pod = self.pod_reflector.pods[self.pod_name]
             owner = None
 
 
-            # self.log.info("UID " + pod.metadata.uid)
+            self.log.info("UID " + pod.metadata.uid)
 
 
             try:
