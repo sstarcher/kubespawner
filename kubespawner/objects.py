@@ -641,7 +641,7 @@ def make_secret(
     secret.metadata.name = name
     secret.metadata.annotations = (annotations or {}).copy()
     secret.metadata.labels = (labels or {}).copy()
-    # secret.metadata.owner_references=[owner]
+    secret.metadata.owner_references=[owner]
 
     secret.data = {}
 
@@ -693,7 +693,7 @@ def make_service(
         name=name,
         annotations=(annotations or {}).copy(),
         labels=(labels or {}).copy(),
-        # owner_references=[owner],
+        owner_references=[owner],
     )
 
     service = V1Service(
