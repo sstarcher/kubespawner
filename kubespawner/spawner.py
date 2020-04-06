@@ -1908,7 +1908,7 @@ class KubeSpawner(Spawner):
             )
 
             pod = self.pod_reflector.pods[self.pod_name]
-            owner = make_owner_reference(pod.metadata.uid, self.pod_name)
+            owner = make_owner_reference(self.pod_name, pod.metadata.uid)
             print(owner)
 
             self.log.info("UID " + pod.metadata.uid)
