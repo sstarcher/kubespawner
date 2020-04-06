@@ -1910,7 +1910,7 @@ class KubeSpawner(Spawner):
             owner = None
 
 
-            self.log.info("UID " + pod.metadata.uid)
+            # self.log.info("UID " + pod.metadata.uid)
 
 
             try:
