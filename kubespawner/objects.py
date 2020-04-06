@@ -693,7 +693,7 @@ def make_service(
         name=name,
         annotations=(annotations or {}).copy(),
         labels=(labels or {}).copy(),
-        owner_references=[owner],
+        # owner_references=[owner],
     )
 
     service = V1Service(
